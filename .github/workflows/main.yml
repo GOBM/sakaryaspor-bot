@@ -12,9 +12,9 @@ SABLON_YOLU = "sablon.png"
 FONT_YOLU = "Sancreek-Regular.ttf"
 
 # --- MAIL AYARLARI (GitHub Secrets'dan gelecek) ---
-MAIL_ADRESI = os.getenv("oguzhanmerakli1@gmail.com")
-MAIL_SIFRESI = os.getenv("2510Oguz") # Gmail Uygulama Şifresi
-ALICI_MAIL = os.getenv("oguzhanmerakli@gmail.com")
+MAIL_ADRESI = os.getenv("MAIL_ADRESI")
+MAIL_SIFRESI = os.getenv("MAIL_SIFRESI") # Gmail Uygulama Şifresi
+ALICI_MAIL = os.getenv("ALICI_MAIL")
 
 def mail_gonder(gorsel_yolu, isim):
     try:
