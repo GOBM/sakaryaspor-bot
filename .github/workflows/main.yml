@@ -1,26 +1,39 @@
-name: Otomatik Gorsel Olusturucu
-on:
-  schedule:
-    - cron: '*/15 * * * *' # Her 15 dakikada bir çalıştırır
-  workflow_dispatch: # Elle başlatma butonu ekler
+import requests
+from bs4 import BeautifulSoup
+from PIL import Image, ImageDraw, ImageFont
+import os
+import re
+import smtplib
+from email.message import EmailMessage
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Python Kur
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-      - name: Kutuphaneleri Yukle
-        run: pip install requests beautifulsoup4 pillow
-      - name: Botu Calistir
-        run: python olus.py
-      - name: Degisikleri Kaydet
-        run: |
-          git config --global user.name 'GorselBot'
-          git config --global user.email 'bot@github.com'
-          git add .
-          git commit -m "Yeni bagisci gorselleri eklendi" || exit 0
-          git push
+# --- AYARLAR ---
+LOG_DOSYASI = "paylasilanlar.txt"
+SABLON_YOLU = "sablon.png"
+FONT_YOLU = "Sancreek-Regular.ttf"
+
+# --- MAIL AYARLARI (GitHub Secrets'dan gelecek) ---
+MAIL_ADRESI = os.getenv("oguzhanmerakli1@gmail.com")
+MAIL_SIFRESI = os.getenv("2510Oguz") # Gmail Uygulama Şifresi
+ALICI_MAIL = os.getenv("oguzhanmerakli@gmail.com")
+
+def mail_gonder(gorsel_yolu, isim):
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = f'Yeni Bağışçı Görseli: {isim}'
+        msg['From'] = MAIL_ADRESI
+        msg['To'] = ALICI_MAIL
+        msg.set_content(f'Sakaryaspor için yeni bir görsel oluşturuldu: {isim}')
+
+        with open(gorsel_yolu, 'rb') as f:
+            file_data = f.read()
+            msg.add_attachment(file_data, maintype='image', subtype='png', filename=f'{isim}.png')
+
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(MAIL_ADRESI, MAIL_SIFRESI)
+            smtp.send_message(msg)
+        print(f"📧 Mail gönderildi: {isim}")
+    except Exception as e:
+        print(f"📧 Mail hatası: {e}")
+
+# ... (Görsel oluşturma ve denetle fonksiyonları aynı kalacak) ...
+# Sadece gorsel_olustur fonksiyonunun sonuna mail_gonder(kayit_adi, isim) satırını ekleyeceğiz.
