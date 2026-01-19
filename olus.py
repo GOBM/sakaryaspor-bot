@@ -5,8 +5,9 @@ import os
 import re
 
 # --- YOLLAR ---
-SABLON_YOLU = r"C:\Users\user\Desktop\sablon.png"
-CIKTI_KLASORU = r"C:\Users\user\Desktoptesekkur_postlari"
+LOG_DOSYASI = "paylasilanlar.txt"
+SABLON_YOLU = "sablon.png" # 
+FONT_YOLU = "Sancreek-Regular.ttf"
 
 def font_bul():
     """Sistemdeki Sancreek font dosyasını farklı konumlarda arar."""
@@ -106,3 +107,4 @@ def verileri_cek_ve_baslat():
 
 if __name__ == "__main__":
     verileri_cek_ve_baslat()
+
