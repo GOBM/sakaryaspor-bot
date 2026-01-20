@@ -45,7 +45,7 @@ def renk_getir(rozet_metni):
     return (255, 255, 255)
 
 def denetle():
-    print("🔍 Yeni bağışçılar kontrol ediliyor (Bireysel + Kurumsal)...")
+    print("🔍 Tüm bağışçı listesi taranıyor (Sınır yok)...")
     if os.path.exists(LOG_DOSYASI):
         with open(LOG_DOSYASI, "r", encoding="utf-8") as f:
             islenenler = set(f.read().splitlines())
@@ -53,7 +53,7 @@ def denetle():
         islenenler = set()
 
     session = requests.Session()
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
     
     sekmeler = [
         "https://bagis.sakaryaspor.org.tr/bagiscilarimiz", 
@@ -61,53 +61,70 @@ def denetle():
     ]
 
     for base_url in sekmeler:
-        for sayfa_no in range(1, 11):
+        sekme_adi = "Kurumsal" if "corporate" in base_url else "Bireysel"
+        print(f"\n--- {sekme_adi} Listesi Başlatıldı ---")
+        
+        sayfa_no = 1
+        while True:
             url = f"{base_url}&page={sayfa_no}" if "?" in base_url else f"{base_url}?page={sayfa_no}"
             try:
                 response = session.get(url, headers=headers, timeout=15)
                 soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # Bağışçıları içeren ana divleri bul (Sitenin yapısına göre güncellendi)
                 bagis_satirlari = soup.find_all('div', class_=re.compile(r'grid|flex'))
                 
-                if not bagis_satirlari: break
+                # Geçerli bağışçı ismi içeren satırları filtrele
+                gecerli_satirlar = []
+                for s in bagis_satirlari:
+                    if s.find('div', class_='col-span-5'):
+                        gecerli_satirlar.append(s)
 
-                for satir in bagis_satirlari:
+                if not gecerli_satirlar:
+                    print(f"✅ {sekme_adi} listesinin sonuna gelindi. (Toplam {sayfa_no-1} sayfa)")
+                    break
+
+                print(f"Sayfa {sayfa_no} taranıyor... ({len(gecerli_satirlar)} kişi bulundu)")
+
+                for satir in gecerli_satirlar:
                     isim_div = satir.find('div', class_='col-span-5')
-                    if isim_div:
-                        isim = isim_div.get_text(strip=True)
-                        if not isim or "Bağışçı" in isim or isim in islenenler:
-                            continue
-                        
-                        print(f"⭐ YENİ BULUNDU: {isim}")
-                        
-                        satir_metni = satir.get_text(" ", strip=True)
-                        rozet = "Nefer"
-                        for anahtar in ["Bronz", "Gümüş", "Altın", "Platin", "Safir", "Zümrüt", "Siyah Elmas", "1965 Efsane"]:
-                            if anahtar in satir_metni: rozet = anahtar; break
-                        
-                        # Görsel Oluşturma
-                        img = Image.open(SABLON_YOLU).convert("RGB")
-                        draw = ImageDraw.Draw(img)
-                        try:
-                            font = ImageFont.truetype(FONT_YOLU, 50)
-                        except:
-                            font = ImageFont.load_default()
-                        
-                        bbox = draw.textbbox((0, 0), isim, font=font)
-                        draw.text(((img.size[0] - (bbox[2]-bbox[0])) / 2, 594), isim, fill=renk_getir(rozet), font=font)
-                        
-                        # HATANIN DÜZELTİLDİĞİ KISIM:
-                        # Dosya adını f-string dışında temizliyoruz
-                        temiz_isim = re.sub(r'[^\w\s-]', '', isim).strip()
-                        kayit_adi = f"{temiz_isim}.png"
-                        
-                        img.save(kayit_adi)
-                        
-                        mail_gonder(kayit_adi, isim)
-                        
-                        with open(LOG_DOSYASI, "a", encoding="utf-8") as f:
-                            f.write(isim + "\n")
-                        islenenler.add(isim)
-            except:
+                    isim = isim_div.get_text(strip=True)
+                    
+                    if not isim or "Bağışçı" in isim or isim in islenenler:
+                        continue
+                    
+                    print(f"⭐ YENİ BAĞIŞÇI: {isim}")
+                    
+                    satir_metni = satir.get_text(" ", strip=True)
+                    rozet = "Nefer"
+                    for anahtar in ["Bronz", "Gümüş", "Altın", "Platin", "Safir", "Zümrüt", "Siyah Elmas", "1965 Efsane"]:
+                        if anahtar in satir_metni: rozet = anahtar; break
+                    
+                    # Görsel Oluşturma
+                    img = Image.open(SABLON_YOLU).convert("RGB")
+                    draw = ImageDraw.Draw(img)
+                    try:
+                        font = ImageFont.truetype(FONT_YOLU, 50)
+                    except:
+                        font = ImageFont.load_default()
+                    
+                    bbox = draw.textbbox((0, 0), isim, font=font)
+                    draw.text(((img.size[0] - (bbox[2]-bbox[0])) / 2, 594), isim, fill=renk_getir(rozet), font=font)
+                    
+                    temiz_isim = re.sub(r'[^\w\s-]', '', isim).strip()
+                    kayit_adi = f"{temiz_isim}.png"
+                    img.save(kayit_adi)
+                    
+                    mail_gonder(kayit_adi, isim)
+                    
+                    with open(LOG_DOSYASI, "a", encoding="utf-8") as f:
+                        f.write(isim + "\n")
+                    islenenler.add(isim)
+                
+                sayfa_no += 1 # Bir sonraki sayfaya geç
+
+            except Exception as e:
+                print(f"⚠️ Hata oluştu (Sayfa {sayfa_no}): {e}")
                 break
 
 if __name__ == "__main__":
