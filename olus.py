@@ -55,14 +55,12 @@ def denetle():
     session = requests.Session()
     headers = {"User-Agent": "Mozilla/5.0"}
     
-    # Her iki sekme için linkler
     sekmeler = [
-        "https://bagis.sakaryaspor.org.tr/bagiscilarimiz", # Bireysel
-        "https://bagis.sakaryaspor.org.tr/bagiscilarimiz?tab=corporate" # Kurumsal
+        "https://bagis.sakaryaspor.org.tr/bagiscilarimiz", 
+        "https://bagis.sakaryaspor.org.tr/bagiscilarimiz?tab=corporate"
     ]
 
     for base_url in sekmeler:
-        # Yeni bağışlar genellikle ilk sayfalara düştüğü için ilk 10 sayfayı tarar
         for sayfa_no in range(1, 11):
             url = f"{base_url}&page={sayfa_no}" if "?" in base_url else f"{base_url}?page={sayfa_no}"
             try:
@@ -81,7 +79,6 @@ def denetle():
                         
                         print(f"⭐ YENİ BULUNDU: {isim}")
                         
-                        # Rozet ve Renk
                         satir_metni = satir.get_text(" ", strip=True)
                         rozet = "Nefer"
                         for anahtar in ["Bronz", "Gümüş", "Altın", "Platin", "Safir", "Zümrüt", "Siyah Elmas", "1965 Efsane"]:
@@ -98,13 +95,15 @@ def denetle():
                         bbox = draw.textbbox((0, 0), isim, font=font)
                         draw.text(((img.size[0] - (bbox[2]-bbox[0])) / 2, 594), isim, fill=renk_getir(rozet), font=font)
                         
-                        kayit_adi = f"{re.sub(r'[^\w\s-]', '', isim).strip()}.png"
+                        # HATANIN DÜZELTİLDİĞİ KISIM:
+                        # Dosya adını f-string dışında temizliyoruz
+                        temiz_isim = re.sub(r'[^\w\s-]', '', isim).strip()
+                        kayit_adi = f"{temiz_isim}.png"
+                        
                         img.save(kayit_adi)
                         
-                        # Mail Gönder
                         mail_gonder(kayit_adi, isim)
                         
-                        # Hafızayı Güncelle (Bu çok önemli!)
                         with open(LOG_DOSYASI, "a", encoding="utf-8") as f:
                             f.write(isim + "\n")
                         islenenler.add(isim)
