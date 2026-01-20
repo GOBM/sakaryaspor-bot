@@ -36,9 +36,15 @@ def mail_gonder(gorsel_yolu, isim):
 
 def renk_getir(rozet_metni):
     renkler = {
-        "Nefer": (76, 175, 80), "Bronz": (205, 127, 50), "Gümüş": (192, 192, 192),
-        "Altın": (255, 215, 0), "Platin": (229, 228, 226), "Safir": (15, 82, 186),
-        "Zümrüt": (0, 168, 107), "Siyah Elmas": (60, 60, 60), "1965 Efsane": (255, 165, 0)
+        "Nefer": (0, 255, 132),      # İstediğin yeni parlak yeşil kod (#00ff84)
+        "Bronz": (205, 127, 50), 
+        "Gümüş": (192, 192, 192),
+        "Altın": (255, 215, 0), 
+        "Platin": (229, 228, 226), 
+        "Safir": (15, 82, 186),
+        "Zümrüt": (0, 168, 107), 
+        "Siyah Elmas": (60, 60, 60), 
+        "1965 Efsane": (255, 165, 0)
     }
     for anahtar, deger in renkler.items():
         if anahtar.lower() in rozet_metni.lower(): return deger
@@ -71,10 +77,8 @@ def denetle():
                 response = session.get(url, headers=headers, timeout=15)
                 soup = BeautifulSoup(response.text, 'html.parser')
                 
-                # Bağışçıları içeren ana divleri bul (Sitenin yapısına göre güncellendi)
                 bagis_satirlari = soup.find_all('div', class_=re.compile(r'grid|flex'))
                 
-                # Geçerli bağışçı ismi içeren satırları filtrele
                 gecerli_satirlar = []
                 for s in bagis_satirlari:
                     if s.find('div', class_='col-span-5'):
@@ -108,8 +112,18 @@ def denetle():
                     except:
                         font = ImageFont.load_default()
                     
+                    # Yazıyı ortala
                     bbox = draw.textbbox((0, 0), isim, font=font)
-                    draw.text(((img.size[0] - (bbox[2]-bbox[0])) / 2, 594), isim, fill=renk_getir(rozet), font=font)
+                    text_width = bbox[2] - bbox[0]
+                    x = (img.size[0] - text_width) / 2
+                    y = 594
+
+                    # GÖRÜNÜRLÜK İÇİN GÖLGE EKLEME (Opsiyonel: İstemezsen bu 2 satırı silebilirsin)
+                    # Yazının 2 piksel sağına ve altına siyah bir gölge atar
+                    draw.text((x+2, y+2), isim, fill=(0, 0, 0), font=font)
+                    
+                    # Ana Metni Yaz (Yeni Yeşil Renk)
+                    draw.text((x, y), isim, fill=renk_getir(rozet), font=font)
                     
                     temiz_isim = re.sub(r'[^\w\s-]', '', isim).strip()
                     kayit_adi = f"{temiz_isim}.png"
@@ -121,7 +135,7 @@ def denetle():
                         f.write(isim + "\n")
                     islenenler.add(isim)
                 
-                sayfa_no += 1 # Bir sonraki sayfaya geç
+                sayfa_no += 1 
 
             except Exception as e:
                 print(f"⚠️ Hata oluştu (Sayfa {sayfa_no}): {e}")
