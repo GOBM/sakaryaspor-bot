@@ -1,4 +1,36 @@
-- name: Botu Yonet
+name: Sakaryaspor Bagis Sistemi
+
+on:
+  schedule:
+    - cron: '*/15 * * * *' # Her 15 dakikada bir otomatik çalışır
+  workflow_dispatch: # Manuel seçim butonunu aktif eder
+    inputs:
+      islem_tipi:
+        description: 'Yapilacak islemi secin'
+        required: true
+        default: 'yeni_takip'
+        type: choice
+        options:
+        - yeni_takip
+        - tum_listeyi_zip_yap
+
+jobs:
+  calistir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Depoyu Cek
+        uses: actions/checkout@v3
+
+      - name: Python Kur
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Kutuphaneleri Yukle
+        run: |
+          pip install Pillow requests beautifulsoup4 lxml
+
+      - name: Botu Yonet
         env:
           MAIL_ADRESI: ${{ secrets.MAIL_ADRESI }}
           MAIL_SIFRESI: ${{ secrets.MAIL_SIFRESI }}
@@ -10,19 +42,17 @@
             python olus.py
           fi
 
-      # DOSYAYI INDIRILEBILIR YAPMA ADIMI BURADA
-      - name: Zip Dosyasini Yukle
+      - name: Zip Dosyasini Yukle (Sadece Toplu Islemde)
         if: github.event.inputs.islem_tipi == 'tum_listeyi_zip_yap'
         uses: actions/upload-artifact@v4
         with:
           name: Sakaryaspor-Sertifikalar
           path: Sakaryaspor_Tum_Sertifikalar.zip
-          retention-days: 5
 
       - name: Degisiklikleri Kaydet
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add .
-          git commit -m "Hafiza guncellendi" || exit 0
+          git commit -m "Veri guncellemesi" || exit 0
           git push
