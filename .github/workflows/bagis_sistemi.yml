@@ -3,7 +3,7 @@ name: Sakaryaspor Bagis Sistemi
 on:
   schedule:
     - cron: '*/15 * * * *' # Her 15 dakikada bir otomatik çalışır
-  workflow_dispatch: # Manuel butonun aktif olması için
+  workflow_dispatch: # Manuel seçim butonunu aktif eder
     inputs:
       islem_tipi:
         description: 'Yapilacak islemi secin'
@@ -26,8 +26,10 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Kutuphaneleri Yükle
-        run: pip install Pillow requests
+      - name: Kutuphaneleri Yukle
+        # Hataları önlemek için bs4 ve lxml buraya eklendi
+        run: |
+          pip install Pillow requests beautifulsoup4 lxml
 
       - name: Botu Yonet
         env:
@@ -36,17 +38,17 @@ jobs:
           ALICI_MAIL: ${{ secrets.ALICI_MAIL }}
         run: |
           if [ "${{ github.event.inputs.islem_tipi }}" == "tum_listeyi_zip_yap" ]; then
-            echo "🚀 Tüm liste için sertifikalar oluşturuluyor..."
+            echo "🚀 Tüm liste zipleniyor..."
             python tam_liste.py
           else
             echo "🔍 Yeni bağışçılar taranıyor..."
             python olus.py
           fi
 
-      - name: Verileri Geri Yukle
+      - name: Degisiklikleri Kaydet
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add .
-          git commit -m "Otomatik veri guncellemesi" || exit 0
+          git commit -m "Veri guncellemesi" || exit 0
           git push
