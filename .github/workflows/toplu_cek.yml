@@ -1,0 +1,23 @@
+name: Tek Seferlik Toplu Sertifika Çekimi
+
+on:
+  workflow_dispatch: # Manuel çalıştırma butonu
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Python Kur
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Kütüphaneleri Kur
+        run: pip install requests beautifulsoup4 Pillow
+      - name: Tüm Listeyi Çek ve Görselleştir
+        run: python toplu_cek.py
+      - name: Sertifikaları Paketle ve Yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: tum-sertifikalar
+          path: sertifikalar/
