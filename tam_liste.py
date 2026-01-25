@@ -21,9 +21,13 @@ def renk_getir(rozet_metni):
         if anahtar.lower() in rozet_metni.lower(): return deger
     return (255, 255, 255)
 
+def temiz_dosya_adi(isim):
+    # Hata veren kisim burada duzeltildi
+    return re.sub(r'[^\w\s-]', '', isim).strip() + ".png"
+
 def toplu_islem():
     if not os.path.exists(GECICI_KLASOR): os.makedirs(GECICI_KLASOR)
-    print("🚀 Tüm bağışçılar taranıyor ve sertifikalar oluşturuluyor...")
+    print("🚀 Tüm bağışçılar taranıyor...")
     
     session = requests.Session()
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -49,7 +53,6 @@ def toplu_islem():
                             isim = isim_div.get_text(strip=True)
                             if not isim or "Bağışçı" in isim: continue
                             
-                            # Görsel Hazırlama
                             img = Image.open(SABLON_YOLU).convert("RGB")
                             draw = ImageDraw.Draw(img)
                             try:
@@ -65,16 +68,14 @@ def toplu_islem():
                             bbox = draw.textbbox((0, 0), isim, font=font)
                             draw.text(((img.size[0] - (bbox[2]-bbox[0])) / 2, 594), isim, fill=renk_getir(rozet), font=font)
                             
-                            # Dosyayı Zip'e Ekle
-                            dosya_adi = f"{re.sub(r'[^\w\s-]', '', isim).strip()}.png"
+                            dosya_adi = temiz_dosya_adi(isim)
                             dosya_yolu = os.path.join(GECICI_KLASOR, dosya_adi)
                             img.save(dosya_yolu)
                             zipf.write(dosya_yolu, dosya_adi)
-                            os.remove(dosya_yolu) # Yer kaplamasın diye sil
+                            os.remove(dosya_yolu)
                     print(f"📄 Sayfa {sayfa_no} tamamlandı.")
                 except: break
-
-    print(f"✅ Bitti! {ZIP_DOSYA_ADI} dosyası oluşturuldu.")
+    print(f"✅ Bitti! {ZIP_DOSYA_ADI} hazır.")
 
 if __name__ == "__main__":
     toplu_islem()
