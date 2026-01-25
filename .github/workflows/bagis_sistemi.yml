@@ -37,22 +37,26 @@ jobs:
           ALICI_MAIL: ${{ secrets.ALICI_MAIL }}
         run: |
           if [ "${{ github.event.inputs.islem_tipi }}" == "tum_listeyi_zip_yap" ]; then
+            echo "🚀 Tüm liste zipleniyor..."
             python tam_liste.py
           else
+            echo "🔍 Yeni bağışçılar taranıyor..."
             python olus.py
           fi
 
+      # 315 MB'lık dosyayı indirmene yarayan sihirli adım
       - name: Zip Dosyasini Yukle (Sadece Toplu Islemde)
         if: github.event.inputs.islem_tipi == 'tum_listeyi_zip_yap'
         uses: actions/upload-artifact@v4
         with:
           name: Sakaryaspor-Sertifikalar
           path: Sakaryaspor_Tum_Sertifikalar.zip
+          retention-days: 5
 
       - name: Degisiklikleri Kaydet
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add .
-          git commit -m "Veri guncellemesi" || exit 0
+          git commit -m "Otomatik veri guncellemesi" || exit 0
           git push
