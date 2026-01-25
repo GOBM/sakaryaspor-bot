@@ -1,68 +1,80 @@
 import requests
 from bs4 import BeautifulSoup
+from PIL import Image, ImageDraw, ImageFont
 import os
 import re
+import zipfile
 
 # --- AYARLAR ---
-# Sonuçlar bu dosyaya kaydedilecek
-VERI_DOSYASI = "tum_bagiscilar_listesi.txt"
+SABLON_YOLU = "sablon.png"
+FONT_YOLU = "Sancreek-Regular.ttf"
+ZIP_DOSYA_ADI = "Sakaryaspor_Tum_Sertifikalar.zip"
+GECICI_KLASOR = "sertifikalar"
 
-def tum_veriyi_cek():
-    print("🚀 Tüm bağışçı verileri çekiliyor (Bireysel + Kurumsal)...")
-    bagis_verileri = []
+def renk_getir(rozet_metni):
+    renkler = {
+        "Nefer": (76, 175, 80), "Bronz": (205, 127, 50), "Gümüş": (192, 192, 192),
+        "Altın": (255, 215, 0), "Platin": (229, 228, 226), "Safir": (15, 82, 186),
+        "Zümrüt": (0, 168, 107), "Siyah Elmas": (60, 60, 60), "1965 Efsane": (255, 165, 0)
+    }
+    for anahtar, deger in renkler.items():
+        if anahtar.lower() in rozet_metni.lower(): return deger
+    return (255, 255, 255)
+
+def toplu_islem():
+    if not os.path.exists(GECICI_KLASOR): os.makedirs(GECICI_KLASOR)
+    print("🚀 Tüm bağışçılar taranıyor ve sertifikalar oluşturuluyor...")
+    
     session = requests.Session()
     headers = {"User-Agent": "Mozilla/5.0"}
-    
-    # Taratılacak sekmeler
     sekmeler = [
-        {"url": "https://bagis.sakaryaspor.org.tr/bagiscilarimiz", "tip": "Bireysel"},
-        {"url": "https://bagis.sakaryaspor.org.tr/bagiscilarimiz?tab=corporate", "tip": "Kurumsal"}
+        "https://bagis.sakaryaspor.org.tr/bagiscilarimiz",
+        "https://bagis.sakaryaspor.org.tr/bagiscilarimiz?tab=corporate"
     ]
 
-    for sekme in sekmeler:
-        print(f"📂 {sekme['tip']} sekmesi taranıyor...")
-        # 550+ kişi için yaklaşık 40 sayfa yeterlidir
-        for sayfa_no in range(1, 41):
-            base_url = sekme['url']
-            url = f"{base_url}&page={sayfa_no}" if "?" in base_url else f"{base_url}?page={sayfa_no}"
-            
-            try:
-                response = session.get(url, headers=headers, timeout=15)
-                soup = BeautifulSoup(response.text, 'html.parser')
-                bagis_satirlari = soup.find_all('div', class_=re.compile(r'grid|flex'))
-                
-                if not bagis_satirlari or len(bagis_satirlari) < 5:
-                    break
+    with zipfile.ZipFile(ZIP_DOSYA_ADI, 'w') as zipf:
+        for base_url in sekmeler:
+            for sayfa_no in range(1, 41):
+                url = f"{base_url}&page={sayfa_no}" if "?" in base_url else f"{base_url}?page={sayfa_no}"
+                try:
+                    response = session.get(url, headers=headers, timeout=15)
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    bagis_satirlari = soup.find_all('div', class_=re.compile(r'grid|flex'))
+                    
+                    if not bagis_satirlari or len(bagis_satirlari) < 3: break
 
-                for satir in bagis_satirlari:
-                    isim_div = satir.find('div', class_='col-span-5')
-                    if isim_div:
-                        isim = isim_div.get_text(strip=True)
-                        if not isim or "Bağışçı" in isim: continue
-                        
-                        # Kategori/Renk belirleme
-                        satir_metni = satir.get_text(" ", strip=True)
-                        kategori = "Nefer"
-                        for anahtar in ["Bronz", "Gümüş", "Altın", "Platin", "Safir", "Zümrüt", "Siyah Elmas", "1965 Efsane"]:
-                            if anahtar in satir_metni:
-                                kategori = anahtar
-                                break
-                        
-                        bagis_verileri.append(f"{isim} | {kategori} | {sekme['tip']}")
-                
-                print(f"   📄 Sayfa {sayfa_no} tamamlandı.")
-            except Exception as e:
-                print(f"   ❌ Sayfa {sayfa_no} hatası: {e}")
-                break
+                    for satir in bagis_satirlari:
+                        isim_div = satir.find('div', class_='col-span-5')
+                        if isim_div:
+                            isim = isim_div.get_text(strip=True)
+                            if not isim or "Bağışçı" in isim: continue
+                            
+                            # Görsel Hazırlama
+                            img = Image.open(SABLON_YOLU).convert("RGB")
+                            draw = ImageDraw.Draw(img)
+                            try:
+                                font = ImageFont.truetype(FONT_YOLU, 50)
+                            except:
+                                font = ImageFont.load_default()
+                            
+                            satir_metni = satir.get_text(" ", strip=True)
+                            rozet = "Nefer"
+                            for anahtar in ["Bronz", "Gümüş", "Altın", "Platin", "Safir", "Zümrüt", "Siyah Elmas", "1965 Efsane"]:
+                                if anahtar in satir_metni: rozet = anahtar; break
+                                
+                            bbox = draw.textbbox((0, 0), isim, font=font)
+                            draw.text(((img.size[0] - (bbox[2]-bbox[0])) / 2, 594), isim, fill=renk_getir(rozet), font=font)
+                            
+                            # Dosyayı Zip'e Ekle
+                            dosya_adi = f"{re.sub(r'[^\w\s-]', '', isim).strip()}.png"
+                            dosya_yolu = os.path.join(GECICI_KLASOR, dosya_adi)
+                            img.save(dosya_yolu)
+                            zipf.write(dosya_yolu, dosya_adi)
+                            os.remove(dosya_yolu) # Yer kaplamasın diye sil
+                    print(f"📄 Sayfa {sayfa_no} tamamlandı.")
+                except: break
 
-    # Verileri dosyaya kaydet
-    with open(VERI_DOSYASI, "w", encoding="utf-8") as f:
-        f.write("İSİM | KATEGORİ | TİP\n")
-        f.write("-" * 30 + "\n")
-        for veri in bagis_verileri:
-            f.write(veri + "\n")
-    
-    print(f"✅ İşlem tamam! Toplam {len(bagis_verileri)} bağışçı {VERI_DOSYASI} dosyasına kaydedildi.")
+    print(f"✅ Bitti! {ZIP_DOSYA_ADI} dosyası oluşturuldu.")
 
 if __name__ == "__main__":
-    tum_veriyi_cek()
+    toplu_islem()
