@@ -1,0 +1,22 @@
+from PIL import Image, ImageDraw, ImageFont
+
+# Test etmek istediğin değerleri buraya yaz
+ISIM = "Deneme Isim"
+RENK = (0, 255, 132) 
+
+img = Image.open("sablon.png").convert("RGB")
+draw = ImageDraw.Draw(img)
+try:
+    font = ImageFont.truetype("Sancreek-Regular.ttf", 50)
+except:
+    font = ImageFont.load_default()
+
+bbox = draw.textbbox((0, 0), ISIM, font=font)
+x = (img.size[0] - (bbox[2] - bbox[0])) / 2
+y = 594
+
+draw.text((x+2, y+2), ISIM, fill=(0, 0, 0), font=font)
+draw.text((x, y), ISIM, fill=RENK, font=font)
+
+img.save("test_sonuc.png")
+print("Gorsel olusturuldu: test_sonuc.png")
