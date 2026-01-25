@@ -1,30 +1,52 @@
-name: Sakaryaspor Bagis Takip
+name: Sakaryaspor Bagis Sistemi
+
 on:
   schedule:
-    - cron: '*/15 * * * *'
-  workflow_dispatch:
+    - cron: '*/15 * * * *' # Her 15 dakikada bir otomatik çalışır
+  workflow_dispatch: # Manuel butonun aktif olması için
+    inputs:
+      islem_tipi:
+        description: 'Yapilacak islemi secin'
+        required: true
+        default: 'yeni_takip'
+        type: choice
+        options:
+        - yeni_takip
+        - tum_listeyi_zip_yap
 
 jobs:
-  build:
+  calistir:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Depoyu Cek
+        uses: actions/checkout@v3
+
       - name: Python Kur
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      - name: Kutuphaneleri Yukle
-        run: pip install requests beautifulsoup4 pillow
-      - name: Botu Calistir ve Mail At
+
+      - name: Kutuphaneleri Yükle
+        run: pip install Pillow requests
+
+      - name: Botu Yonet
         env:
           MAIL_ADRESI: ${{ secrets.MAIL_ADRESI }}
           MAIL_SIFRESI: ${{ secrets.MAIL_SIFRESI }}
           ALICI_MAIL: ${{ secrets.ALICI_MAIL }}
-        run: python olus.py
-      - name: Degisikleri Kaydet
         run: |
-          git config --global user.name 'GorselBot'
-          git config --global user.email 'bot@github.com'
+          if [ "${{ github.event.inputs.islem_tipi }}" == "tum_listeyi_zip_yap" ]; then
+            echo "🚀 Tüm liste için sertifikalar oluşturuluyor..."
+            python tam_liste.py
+          else
+            echo "🔍 Yeni bağışçılar taranıyor..."
+            python olus.py
+          fi
+
+      - name: Verileri Geri Yukle
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
           git add .
-          git commit -m "Yeni bagisci logu" || exit 0
+          git commit -m "Otomatik veri guncellemesi" || exit 0
           git push
