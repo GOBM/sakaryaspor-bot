@@ -1,0 +1,42 @@
+from PIL import Image, ImageDraw, ImageFont
+
+# --- AYARLAR (Burayı kendine göre değiştir) ---
+ISIM = "Oguzhan Meraklı"
+RENK = (0, 255, 132)  # Denemek istediğin RGB kodu (Şu an Nefer yeşili)
+SABLON_YOLU = "sablon.png"
+FONT_YOLU = "Sancreek-Regular.ttf"
+CIKTI_ADI = "deneme_sonuc.png"
+
+def tek_deneme_yap():
+    try:
+        # 1. Şablonu yükle
+        img = Image.open(SABLON_YOLU).convert("RGB")
+        draw = ImageDraw.Draw(img)
+
+        # 2. Fontu yükle (Dosya yoksa hata vermemesi için kontrol)
+        try:
+            font = ImageFont.truetype(FONT_YOLU, 50)
+        except:
+            font = ImageFont.load_default()
+            print("Font dosyası bulunamadı, varsayılan font kullanılıyor.")
+
+        # 3. Hizalamayı hesapla (Ortalamak için)
+        bbox = draw.textbbox((0, 0), ISIM, font=font)
+        text_width = bbox[2] - bbox[0]
+        x = (img.size[0] - text_width) / 2
+        y = 594  # Senin orijinal kodundaki yükseklik
+
+        # 4. Yazıyı çiz (Önce siyah gölge, sonra ana renk)
+        draw.text((x+2, y+2), ISIM, fill=(0, 0, 0), font=font) # Gölge
+        draw.text((x, y), ISIM, fill=RENK, font=font)         # Ana yazı
+
+        # 5. Kaydet ve Göster
+        img.save(CIKTI_ADI)
+        print(f"✅ Deneme görseli '{CIKTI_ADI}' adıyla kaydedildi.")
+        img.show() # Görseli hemen ekranda açar
+
+    except Exception as e:
+        print(f"❌ Hata: {e}")
+
+if __name__ == "__main__":
+    tek_deneme_yap()
