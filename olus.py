@@ -25,7 +25,7 @@ def mail_gonder(gorsel_yolu, isim):
         msg.set_content(f'Yeni bir bağışçı yakalandı: {isim}\n\nGörsel ektedir.')
 
         with open(gorsel_yolu, 'rb') as f:
-            msg.add_attachment(f.read(), maintype='image', subtype='png', filename=f'{isim}.png')
+            msg.add_attachment(f.read(), maintype='image', subtype='png', filename=os.path.basename(gorsel_yolu))
 
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(MAIL_ADRESI, MAIL_SIFRESI)
@@ -36,14 +36,14 @@ def mail_gonder(gorsel_yolu, isim):
 
 def renk_getir(rozet_metni):
     renkler = {
-        "Nefer": (0, 255, 132),      # İstediğin yeni parlak yeşil kod (#00ff84)
-        "Bronz": (205, 127, 50), 
+        "Nefer": (0, 255, 132),       # Parlak Yeşil
+        "Bronz": (205, 127, 50),  
         "Gümüş": (192, 192, 192),
-        "Altın": (255, 215, 0), 
-        "Platin": (229, 228, 226), 
+        "Altın": (255, 215, 0),  
+        "Platin": (229, 228, 226),  
         "Safir": (15, 82, 186),
-        "Zümrüt": (0, 168, 107), 
-        "Siyah Elmas": (60, 60, 60), 
+        "Zümrüt": (4, 121, 89),       # Koyu Zümrüt Yeşili
+        "Siyah Elmas": (40, 40, 40),  
         "1965 Efsane": (255, 165, 0)
     }
     for anahtar, deger in renkler.items():
@@ -51,7 +51,12 @@ def renk_getir(rozet_metni):
     return (255, 255, 255)
 
 def denetle():
-    print("🔍 Tüm bağışçı listesi taranıyor (Sınır yok)...")
+    print("🔍 Bağışçı listesi taranıyor...")
+    
+    # Tekrar eden isimleri takip etmek için sayaç
+    isim_sayaclari = {}
+    
+    # İşlenenleri küme olarak tut (Zaten paylaşılanları atlamak için)
     if os.path.exists(LOG_DOSYASI):
         with open(LOG_DOSYASI, "r", encoding="utf-8") as f:
             islenenler = set(f.read().splitlines())
@@ -67,9 +72,6 @@ def denetle():
     ]
 
     for base_url in sekmeler:
-        sekme_adi = "Kurumsal" if "corporate" in base_url else "Bireysel"
-        print(f"\n--- {sekme_adi} Listesi Başlatıldı ---")
-        
         sayfa_no = 1
         while True:
             url = f"{base_url}&page={sayfa_no}" if "?" in base_url else f"{base_url}?page={sayfa_no}"
@@ -78,32 +80,34 @@ def denetle():
                 soup = BeautifulSoup(response.text, 'html.parser')
                 
                 bagis_satirlari = soup.find_all('div', class_=re.compile(r'grid|flex'))
-                
-                gecerli_satirlar = []
-                for s in bagis_satirlari:
-                    if s.find('div', class_='col-span-5'):
-                        gecerli_satirlar.append(s)
+                gecerli_satirlar = [s for s in bagis_satirlari if s.find('div', class_='col-span-5')]
 
                 if not gecerli_satirlar:
-                    print(f"✅ {sekme_adi} listesinin sonuna gelindi. (Toplam {sayfa_no-1} sayfa)")
                     break
-
-                print(f"Sayfa {sayfa_no} taranıyor... ({len(gecerli_satirlar)} kişi bulundu)")
 
                 for satir in gecerli_satirlar:
                     isim_div = satir.find('div', class_='col-span-5')
                     isim = isim_div.get_text(strip=True)
                     
+                    # Gizli bağışçıları veya zaten işlenenleri atla
                     if not isim or "Bağışçı" in isim or isim in islenenler:
                         continue
                     
-                    print(f"⭐ YENİ BAĞIŞÇI: {isim}")
-                    
+                    # Rozet tespiti
                     satir_metni = satir.get_text(" ", strip=True)
                     rozet = "Nefer"
                     for anahtar in ["Bronz", "Gümüş", "Altın", "Platin", "Safir", "Zümrüt", "Siyah Elmas", "1965 Efsane"]:
                         if anahtar in satir_metni: rozet = anahtar; break
                     
+                    # BENZERSİZ DOSYA ADI OLUŞTURMA (Eksik sertifika sorununu çözer)
+                    temiz_isim = re.sub(r'[^\w\s-]', '', isim).strip()
+                    if temiz_isim in isim_sayaclari:
+                        isim_sayaclari[temiz_isim] += 1
+                        kayit_adi = f"{temiz_isim}-{isim_sayaclari[temiz_isim]}.png"
+                    else:
+                        isim_sayaclari[temiz_isim] = 1
+                        kayit_adi = f"{temiz_isim}.png"
+
                     # Görsel Oluşturma
                     img = Image.open(SABLON_YOLU).convert("RGB")
                     draw = ImageDraw.Draw(img)
@@ -112,25 +116,17 @@ def denetle():
                     except:
                         font = ImageFont.load_default()
                     
-                    # Yazıyı ortala
                     bbox = draw.textbbox((0, 0), isim, font=font)
-                    text_width = bbox[2] - bbox[0]
-                    x = (img.size[0] - text_width) / 2
-                    y = 594
-
-                    # GÖRÜNÜRLÜK İÇİN GÖLGE EKLEME (Opsiyonel: İstemezsen bu 2 satırı silebilirsin)
-                    # Yazının 2 piksel sağına ve altına siyah bir gölge atar
-                    draw.text((x+2, y+2), isim, fill=(0, 0, 0), font=font)
+                    x = (img.size[0] - (bbox[2] - bbox[0])) / 2
                     
-                    # Ana Metni Yaz (Yeni Yeşil Renk)
-                    draw.text((x, y), isim, fill=renk_getir(rozet), font=font)
+                    # Yazı (Gölge ve Ana Renk)
+                    draw.text((x+2, 594+2), isim, fill=(0, 0, 0), font=font)
+                    draw.text((x, 594), isim, fill=renk_getir(rozet), font=font)
                     
-                    temiz_isim = re.sub(r'[^\w\s-]', '', isim).strip()
-                    kayit_adi = f"{temiz_isim}.png"
                     img.save(kayit_adi)
-                    
                     mail_gonder(kayit_adi, isim)
                     
+                    # Kayıt Defterine Ekle
                     with open(LOG_DOSYASI, "a", encoding="utf-8") as f:
                         f.write(isim + "\n")
                     islenenler.add(isim)
@@ -138,7 +134,7 @@ def denetle():
                 sayfa_no += 1 
 
             except Exception as e:
-                print(f"⚠️ Hata oluştu (Sayfa {sayfa_no}): {e}")
+                print(f"⚠️ Hata: {e}")
                 break
 
 if __name__ == "__main__":
